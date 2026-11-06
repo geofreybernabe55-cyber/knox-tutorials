@@ -994,16 +994,16 @@ const PRACTICE_DATA = {
       filename: 'exercise1.html',
       prompt: 'Practice creating a main heading and a descriptive paragraph in HTML.',
       taskDetail:
-        'Add an <code>&lt;h1&gt;</code> element containing the text <code>KNOX Academy</code> and a <code>&lt;p&gt;</code> element with any welcome message.',
+        'Add an <code>&lt;h1&gt;</code> element with any heading text you want and a <code>&lt;p&gt;</code> element with any welcome message.',
       starterCode: `<!-- Write your HTML below -->\n\n`,
-      solutionCode: `<h1>KNOX Academy</h1>\n<p>Welcome to interactive HTML coding!</p>`,
-      hint: 'Use <h1>KNOX Academy</h1> on the first line, followed by <p>Your text here</p>.',
+      solutionCode: `<h1>My First Webpage</h1>\n<p>Welcome to interactive HTML coding!</p>`,
+      hint: 'Use <h1>Your heading here</h1> on the first line, followed by <p>Your text here</p>.',
       previewMode: 'html',
       validate(code) {
-        const hasH1 = /<h1[^>]*>[\s\S]*?knox\s+academy[\s\S]*?<\/h1>/i.test(code);
-        const hasP = /<p[^>]*>[\s\S]+?<\/p>/i.test(code);
+        const hasH1 = /<h1[^>]*>[\s\S]*?\S[\s\S]*?<\/h1>/i.test(code);
+        const hasP = /<p[^>]*>[\s\S]*?\S[\s\S]*?<\/p>/i.test(code);
         if (!hasH1) {
-          return { ok: false, message: 'Make sure you include an <h1> tag containing "KNOX Academy".' };
+          return { ok: false, message: 'Make sure you include a non-empty <h1>...</h1> heading tag.' };
         }
         if (!hasP) {
           return { ok: false, message: 'Almost there! Add a non-empty <p>...</p> paragraph below your heading.' };
