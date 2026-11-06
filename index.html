@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>KNOX — Interactive Coding Tutorials</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- Top Navigation Bar -->
+  <header class="navbar">
+    <div class="nav-brand" id="brandHome" role="button" tabindex="0">
+      <span class="brand-icon">&lt;/&gt;</span>
+      <div class="brand-text">
+        <span class="brand-title">KNOX</span>
+        <span class="brand-subtitle">Interactive Tutorial &amp; Practice Hub</span>
+      </div>
+    </div>
+
+    <nav class="nav-languages" id="navLanguagePills" aria-label="Language Quick Switcher">
+      <!-- Dynamically populated language pills -->
+    </nav>
+
+    <div class="nav-actions">
+      <button class="btn-dashboard hidden" id="backToDashboardBtn" type="button">
+        <span>&#8592;</span> All Languages
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="main-container">
+    <!-- DASHBOARD VIEW -->
+    <section id="dashboardView" class="dashboard-view">
+      <div class="hero-banner">
+        <span class="hero-badge">KNOX Learning Platform</span>
+        <h1>Choose a Language to Learn &amp; Practice</h1>
+        <p>
+          Select any language below to study structured topic categories with sample code,
+          or jump straight into interactive hands-on coding exercises.
+        </p>
+      </div>
+
+      <div class="language-grid" id="languageGrid">
+        <!-- Populated by script.js -->
+      </div>
+    </section>
+
+    <!-- TUTORIAL & PRACTICE VIEW (Language Selected) -->
+    <section id="tutorialView" class="tutorial-view hidden">
+      <!-- Sidebar: Mode Switcher + Categories / Challenges -->
+      <aside class="category-sidebar">
+        <div class="sidebar-top-row">
+          <div class="sidebar-header" id="sidebarLanguageHeader">
+            <!-- Language badge & title -->
+          </div>
+          <button
+            type="button"
+            class="btn-mobile-topics"
+            id="mobileSidebarToggleBtn"
+            aria-expanded="true"
+            aria-controls="sidebarCollapsibleBody"
+          >
+            Hide Topics &#9650;
+          </button>
+        </div>
+
+        <div id="sidebarCollapsibleBody" class="sidebar-collapsible-body">
+          <!-- Mode Switcher: Learn vs Practice -->
+          <div class="mode-tabs" role="tablist" aria-label="Learning Mode">
+            <button
+              type="button"
+              class="mode-tab active"
+              id="tabLearnBtn"
+              role="tab"
+              aria-selected="true"
+            >
+              Tutorials
+            </button>
+            <button
+              type="button"
+              class="mode-tab"
+              id="tabPracticeBtn"
+              role="tab"
+              aria-selected="false"
+            >
+              Practice Lab
+            </button>
+          </div>
+
+          <!-- LEARN SIDEBAR LIST -->
+          <div id="learnSidebarPanel">
+            <div class="sidebar-search">
+              <input
+                type="text"
+                id="categorySearchInput"
+                placeholder="Filter topics..."
+                aria-label="Filter topics"
+              />
+            </div>
+
+            <div class="sidebar-label">Select a Topic / Category</div>
+            <ul class="category-list" id="categoryList">
+              <!-- Populated by script.js -->
+            </ul>
+          </div>
+
+          <!-- PRACTICE SIDEBAR LIST -->
+          <div id="practiceSidebarPanel" class="hidden">
+            <div class="practice-progress-box">
+              <div class="practice-progress-header">
+                <span>Completed</span>
+                <strong id="practiceProgressText">0 / 4</strong>
+              </div>
+              <div class="practice-progress-bar">
+                <div class="practice-progress-fill" id="practiceProgressFill"></div>
+              </div>
+            </div>
+
+            <div class="sidebar-label">Select a Practice Exercise</div>
+            <ul class="category-list" id="practiceList">
+              <!-- Populated by script.js -->
+            </ul>
+          </div>
+        </div>
+      </aside>
+
+      <!-- MAIN LESSON CONTENT (LEARN MODE) -->
+      <article class="lesson-content" id="lessonContent">
+        <div class="lesson-header">
+          <div class="lesson-header-top">
+            <div class="lesson-breadcrumbs" id="lessonBreadcrumbs">
+              <!-- e.g. HTML / Part 1 of 6 -->
+            </div>
+            <button type="button" class="btn-go-practice" id="goToPracticeFromLessonBtn">
+              Practice This Language &#8594;
+            </button>
+          </div>
+          <h2 id="lessonTitle">Select a category</h2>
+          <p id="lessonDescription" class="lesson-description"></p>
+        </div>
+
+        <!-- Key Takeaways / Notes -->
+        <div class="key-points-card">
+          <h3>Key Concepts</h3>
+          <ul id="lessonKeyPoints" class="key-points-list"></ul>
+        </div>
+
+        <!-- Sample Code & Result Section -->
+        <div class="code-section">
+          <div class="code-card">
+            <div class="code-card-header">
+              <div class="window-dots">
+                <span class="dot dot-red"></span>
+                <span class="dot dot-yellow"></span>
+                <span class="dot dot-green"></span>
+              </div>
+              <span class="code-filename" id="codeFilename">sample.html</span>
+              <button class="btn-copy" id="copyCodeBtn" type="button">
+                Copy Code
+              </button>
+            </div>
+            <pre class="code-block"><code id="sampleCodeBlock"></code></pre>
+          </div>
+
+          <!-- Code Result / Output -->
+          <div class="output-card">
+            <div class="output-card-header">
+              <span class="output-title">Code Result / Output</span>
+              <span class="output-badge" id="outputTypeBadge">Result</span>
+            </div>
+            <div class="output-body" id="outputBody">
+              <!-- Populated by script.js -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Lesson Footer Navigation -->
+        <div class="lesson-footer-nav">
+          <button class="btn-nav" id="prevTopicBtn" type="button">
+            &#8592; Previous Topic
+          </button>
+          <button class="btn-nav btn-nav-primary" id="nextTopicBtn" type="button">
+            Next Topic &#8594;
+          </button>
+        </div>
+      </article>
+
+      <!-- MAIN PRACTICE CONTENT (PRACTICE MODE) -->
+      <article class="lesson-content hidden" id="practiceContent">
+        <div class="lesson-header">
+          <div class="lesson-header-top">
+            <div class="lesson-breadcrumbs" id="practiceBreadcrumbs">
+              <!-- e.g. HTML Practice / Challenge 1 of 4 -->
+            </div>
+            <span class="practice-status-pill" id="practiceStatusPill">Not Solved Yet</span>
+          </div>
+          <h2 id="practiceTitle">Practice Challenge</h2>
+          <p id="practicePrompt" class="lesson-description"></p>
+        </div>
+
+        <!-- Task Goal Box -->
+        <div class="key-points-card practice-task-card">
+          <h3>Challenge Instructions</h3>
+          <p id="practiceTaskDetail" class="practice-task-detail"></p>
+        </div>
+
+        <!-- Interactive Code Editor -->
+        <div class="code-card practice-editor-card">
+          <div class="code-card-header">
+            <div class="window-dots">
+              <span class="dot dot-red"></span>
+              <span class="dot dot-yellow"></span>
+              <span class="dot dot-green"></span>
+            </div>
+            <span class="code-filename" id="practiceFilename">practice.html</span>
+            <div class="editor-header-actions">
+              <button class="btn-copy" id="resetPracticeBtn" type="button">
+                Reset
+              </button>
+              <button class="btn-copy" id="hintPracticeBtn" type="button">
+                Show Hint
+              </button>
+              <button class="btn-copy" id="solutionPracticeBtn" type="button">
+                Show Solution
+              </button>
+            </div>
+          </div>
+          <textarea
+            id="practiceCodeInput"
+            class="practice-textarea"
+            spellcheck="false"
+            aria-label="Practice code editor"
+          ></textarea>
+        </div>
+
+        <!-- Hint Box -->
+        <div class="practice-hint-box hidden" id="practiceHintBox">
+          <strong>Hint:</strong> <span id="practiceHintText"></span>
+        </div>
+
+        <!-- Run & Check Action Bar -->
+        <div class="practice-actions-bar">
+          <button type="button" class="btn-run-check" id="runCheckBtn">
+            &#9654; Run &amp; Check Answer
+          </button>
+        </div>
+
+        <!-- Feedback Banner -->
+        <div class="practice-feedback hidden" id="practiceFeedback"></div>
+
+        <!-- Practice Output / Live Preview -->
+        <div class="output-card" id="practiceOutputCard">
+          <div class="output-card-header">
+            <span class="output-title">Your Code Output</span>
+            <span class="output-badge" id="practiceOutputBadge">Ready</span>
+          </div>
+          <div class="output-body" id="practiceOutputBody">
+            <p class="output-placeholder">
+              Write your code above and click <strong>Run &amp; Check Answer</strong> to test your solution.
+            </p>
+          </div>
+        </div>
+
+        <!-- Practice Footer Navigation -->
+        <div class="lesson-footer-nav">
+          <button class="btn-nav" id="prevChallengeBtn" type="button">
+            &#8592; Previous Exercise
+          </button>
+          <button class="btn-nav btn-nav-primary" id="nextChallengeBtn" type="button">
+            Next Exercise &#8594;
+          </button>
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <!-- Site Footer -->
+  <footer class="site-footer">
+    <p class="footer-brand"><strong>KNOX</strong> — Interactive Coding Tutorials</p>
+    <p class="footer-authors">
+      Geofrey M. Bernabe &bull; Irish Kate T. Mercado &bull; Princess Roxanne M. Quitola
+    </p>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
