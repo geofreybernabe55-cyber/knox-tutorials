@@ -984,6 +984,62 @@ Princess Roxanne M. Quitola leveled up to Level 6!`
 };
 
 /* ==========================================================================
+   Practice Validation & Output Simulation Helpers
+   ========================================================================== */
+function stripCodeComments(code, lang = 'c') {
+  if (lang === 'python') {
+    return code.replace(/"""[\s\S]*?"""|'''[\s\S]*?'''|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|#[^\n]*/g, (m) =>
+      m.startsWith('#') ? '' : m
+    );
+  }
+  if (lang === 'sql') {
+    return code.replace(/'(?:''|[^'])*'|"(?:\\.|[^"\\])*"|--[^\n]*|\/\*[\s\S]*?\*\//g, (m) =>
+      m.startsWith('--') || m.startsWith('/*') ? ' ' : m
+    );
+  }
+  return code.replace(/"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|\/\/[^\n]*|\/\*[\s\S]*?\*\//g, (m) =>
+    m.startsWith('//') || m.startsWith('/*') ? ' ' : m
+  );
+}
+
+const SAMPLE_SQL_STUDENTS = [
+  { student_id: 101, full_name: 'Geofrey M. Bernabe', course: 'SQL', score: 98 },
+  { student_id: 102, full_name: 'Irish Kate T. Mercado', course: 'Python', score: 95 },
+  { student_id: 103, full_name: 'Princess Roxanne M. Quitola', course: 'HTML', score: 93 },
+  { student_id: 104, full_name: 'Alex Rivera', course: 'C++', score: 86 },
+  { student_id: 105, full_name: 'Sam Cruz', course: 'Java', score: 78 }
+];
+
+function formatSqlResultTable(cols, rows) {
+  if (!rows.length) {
+    return '(0 rows matched your filter condition — query syntax is valid!)';
+  }
+  const widths = cols.map((col) =>
+    Math.max(col.length, ...rows.map((r) => String(r[col] ?? '').length))
+  );
+  const header = cols.map((c, i) => c.padEnd(widths[i])).join(' | ');
+  const sep = widths.map((w) => '-'.repeat(w)).join('-+-');
+  const body = rows
+    .map((r) => cols.map((c, i) => String(r[c] ?? '').padEnd(widths[i])).join(' | '))
+    .join('\n');
+  return `${header}\n${sep}\n${body}`;
+}
+
+function compareValues(left, op, right) {
+  switch (op) {
+    case '>=': return left >= right;
+    case '<=': return left <= right;
+    case '>': return left > right;
+    case '<': return left < right;
+    case '==':
+    case '=': return left == right;
+    case '!=':
+    case '<>': return left != right;
+    default: return false;
+  }
+}
+
+/* ==========================================================================
    Practice Exercises Data (4 Progressive Challenges per Language)
    ========================================================================== */
 const PRACTICE_DATA = {
@@ -992,23 +1048,45 @@ const PRACTICE_DATA = {
       id: 'html-prac-1',
       title: 'Heading & Paragraph',
       filename: 'exercise1.html',
-      prompt: 'Practice creating a main heading and a descriptive paragraph in HTML.',
+      prompt: 'Practice creating a main heading and a descriptive paragraph inside a full HTML5 page.',
       taskDetail:
-        'Add an <code>&lt;h1&gt;</code> element with any heading text you want and a <code>&lt;p&gt;</code> element with any welcome message.',
-      starterCode: `<!-- Write your HTML below -->\n\n`,
-      solutionCode: `<h1>My First Webpage</h1>\n<p>Welcome to interactive HTML coding!</p>`,
-      hint: 'Use <h1>Your heading here</h1> on the first line, followed by <p>Your text here</p>.',
+        'Using the full HTML structure below, write <strong>any heading text or numbers you want</strong> inside <code>&lt;h1&gt;...&lt;/h1&gt;</code> and <strong>any message you want</strong> inside <code>&lt;p&gt;...&lt;/p&gt;</code>.',
+      starterCode: `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Heading & Paragraph</title>
+</head>
+<body>
+  <!-- Write anything you want inside <h1> and <p> -->
+  <h1></h1>
+  <p></p>
+</body>
+</html>`,
+      solutionCode: `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Heading & Paragraph</title>
+</head>
+<body>
+  <h1>My First Webpage</h1>
+  <p>Welcome to interactive HTML coding!</p>
+</body>
+</html>`,
+      hint: 'Type any heading text between <h1> and </h1>, and any paragraph text between <p> and </p>.',
       previewMode: 'html',
       validate(code) {
-        const hasH1 = /<h1[^>]*>[\s\S]*?\S[\s\S]*?<\/h1>/i.test(code);
-        const hasP = /<p[^>]*>[\s\S]*?\S[\s\S]*?<\/p>/i.test(code);
+        const clean = code.replace(/<!--[\s\S]*?-->/g, '');
+        const hasH1 = /<h1\b[^>]*>[\s\S]*?\S[\s\S]*?<\/h1>/i.test(clean);
+        const hasP = /<p\b[^>]*>[\s\S]*?\S[\s\S]*?<\/p>/i.test(clean);
         if (!hasH1) {
-          return { ok: false, message: 'Make sure you include a non-empty <h1>...</h1> heading tag.' };
+          return { ok: false, message: 'Write any non-empty text or numbers inside <h1>...</h1>.' };
         }
         if (!hasP) {
-          return { ok: false, message: 'Almost there! Add a non-empty <p>...</p> paragraph below your heading.' };
+          return { ok: false, message: 'Almost there! Write any non-empty message inside <p>...</p>.' };
         }
-        return { ok: true, message: 'Great job! Your heading and paragraph are structured properly.' };
+        return { ok: true, message: 'Great job! Your heading and paragraph rendered properly.' };
       }
     },
     {
@@ -1017,43 +1095,107 @@ const PRACTICE_DATA = {
       filename: 'exercise2.html',
       prompt: 'Links connect pages on the web using the anchor (<a>) tag and href attribute.',
       taskDetail:
-        'Create an <code>&lt;a&gt;</code> element with <code>href="https://www.w3schools.com"</code> and clickable text <code>Visit W3Schools</code>.',
-      starterCode: `<!-- Create your hyperlink here -->\n<p>\n  \n</p>`,
-      solutionCode: `<p>\n  <a href="https://www.w3schools.com">Visit W3Schools</a>\n</p>`,
-      hint: 'Write <a href="https://www.w3schools.com">Visit W3Schools</a> inside or alongside the paragraph.',
+        'Inside the <code>&lt;a&gt;</code> tag below, put <strong>any URL you want</strong> inside <code>href=""</code> (for example <code>https://example.com</code>) and write <strong>any clickable text</strong> between <code>&lt;a&gt;...&lt;/a&gt;</code>.',
+      starterCode: `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Create a Hyperlink</title>
+</head>
+<body>
+  <p>
+    <!-- Put any URL in href="" and any link text inside <a>...</a> -->
+    <a href=""></a>
+  </p>
+</body>
+</html>`,
+      solutionCode: `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Create a Hyperlink</title>
+</head>
+<body>
+  <p>
+    <a href="https://www.w3schools.com">Visit My Favorite Site</a>
+  </p>
+</body>
+</html>`,
+      hint: 'Example: <a href="https://google.com">Click Here</a> — any URL and any link text will work!',
       previewMode: 'html',
       validate(code) {
-        const hasHref = /<a\s+[^>]*href\s*=\s*["']https?:\/\/(www\.)?w3schools\.com\/?["'][^>]*>[\s\S]*?visit\s+w3schools[\s\S]*?<\/a>/i.test(code);
-        if (!hasHref) {
-          return {
-            ok: false,
-            message: 'Include an <a> tag with href="https://www.w3schools.com" and the text "Visit W3Schools".'
-          };
+        const clean = code.replace(/<!--[\s\S]*?-->/g, '');
+        const aMatch = /<a\b([^>]*)>([\s\S]*?)<\/a>/i.exec(clean);
+        if (!aMatch) {
+          return { ok: false, message: 'Keep the <a href="...">...</a> anchor tag in your HTML.' };
         }
-        return { ok: true, message: 'Awesome! Your anchor hyperlink to w3schools.com is valid and ready to click.' };
+        const attrs = aMatch[1];
+        const linkText = aMatch[2].replace(/<[^>]*>/g, '').trim();
+        const hrefMatch = /href\s*=\s*(["'])\s*(\S[\s\S]*?)\s*\1/i.exec(attrs);
+        if (!hrefMatch) {
+          return { ok: false, message: 'Add any non-empty link URL inside href="..." (e.g., href="https://example.com").' };
+        }
+        if (!linkText) {
+          return { ok: false, message: 'Write any clickable text between <a href="..."> and </a>.' };
+        }
+        return { ok: true, message: 'Awesome! Your custom hyperlink is valid and ready to click.' };
       }
     },
     {
       id: 'html-prac-3',
-      title: 'Unordered List of Skills',
+      title: 'Unordered List of Items',
       filename: 'exercise3.html',
-      prompt: 'Group related items into a bulleted list using <ul> and <li> tags.',
+      prompt: 'Group items into a bulleted list using <ul> and <li> tags.',
       taskDetail:
-        'Create a <code>&lt;ul&gt;</code> unordered list with at least <strong>3</strong> <code>&lt;li&gt;</code> list items (for example: HTML, CSS, Python).',
-      starterCode: `<h3>My Coding Stack</h3>\n<!-- Add your <ul> and 3 <li> items below -->\n`,
-      solutionCode: `<h3>My Coding Stack</h3>\n<ul>\n  <li>HTML</li>\n  <li>CSS</li>\n  <li>Python</li>\n</ul>`,
-      hint: 'Wrap three <li>Item</li> tags inside an opening <ul> and closing </ul>.',
+        'Fill in the <code>&lt;li&gt;...&lt;/li&gt;</code> list items inside <code>&lt;ul&gt;</code> with <strong>any words or numbers you want</strong> (you can also add or remove <code>&lt;li&gt;</code> items freely).',
+      starterCode: `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Unordered List</title>
+</head>
+<body>
+  <h3>My Custom List</h3>
+  <ul>
+    <!-- Type any text or numbers inside the <li> items below -->
+    <li></li>
+    <li></li>
+    <li></li>
+  </ul>
+</body>
+</html>`,
+      solutionCode: `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Unordered List</title>
+</head>
+<body>
+  <h3>My Custom List</h3>
+  <ul>
+    <li>HTML</li>
+    <li>CSS</li>
+    <li>Python</li>
+  </ul>
+</body>
+</html>`,
+      hint: 'Type any text or numbers inside each <li>...</li> tag inside <ul>...</ul>.',
       previewMode: 'html',
       validate(code) {
-        const hasUl = /<ul[^>]*>[\s\S]*<\/ul>/i.test(code);
-        const liMatches = code.match(/<li[^>]*>[\s\S]+?<\/li>/gi) || [];
-        if (!hasUl) {
-          return { ok: false, message: 'Remember to wrap your list items inside <ul>...</ul>.' };
+        const clean = code.replace(/<!--[\s\S]*?-->/g, '');
+        const ulMatch = /<ul\b[^>]*>([\s\S]*?)<\/ul>/i.exec(clean);
+        if (!ulMatch) {
+          return { ok: false, message: 'Keep your list items wrapped inside <ul>...</ul>.' };
         }
-        if (liMatches.length < 3) {
-          return { ok: false, message: `Found ${liMatches.length} <li> item(s). Add at least 3 <li> items!` };
+        const filledItems = ulMatch[1].match(/<li\b[^>]*>[\s\S]*?\S[\s\S]*?<\/li>/gi) || [];
+        const emptyItems = ulMatch[1].match(/<li\b[^>]*>\s*<\/li>/gi) || [];
+        if (filledItems.length === 0) {
+          return { ok: false, message: 'Type any text or numbers inside the <li>...</li> tags!' };
         }
-        return { ok: true, message: 'Well done! Your unordered list renders cleanly.' };
+        if (emptyItems.length > 0) {
+          return { ok: false, message: `Fill in (or remove) the ${emptyItems.length} empty <li></li> tag(s) so every bullet has content.` };
+        }
+        return { ok: true, message: `Well done! Your unordered list with ${filledItems.length} item(s) renders cleanly.` };
       }
     },
     {
@@ -1062,21 +1204,53 @@ const PRACTICE_DATA = {
       filename: 'exercise4.html',
       prompt: 'Forms collect user details with <input> controls and a submit <button>.',
       taskDetail:
-        'Inside the <code>&lt;form&gt;</code>, add an <code>&lt;input type="email"&gt;</code> field and a <code>&lt;button type="submit"&gt;</code> button.',
-      starterCode: `<form>\n  <label>Email:</label>\n  <!-- Add email input and submit button -->\n\n</form>`,
-      solutionCode: `<form>\n  <label>Email:</label>\n  <input type="email" placeholder="you@knox.dev" required>\n  <button type="submit">Join KNOX</button>\n</form>`,
-      hint: 'Include <input type="email"> and <button type="submit">Join</button> inside <form>...</form>.',
+        'Inside the <code>&lt;form&gt;</code> structure below, set <strong>any input type</strong> you want (e.g. <code>email</code>, <code>text</code>, <code>number</code>, <code>password</code>) and write <strong>any label text</strong> inside the submit <code>&lt;button&gt;</code>.',
+      starterCode: `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Sign-Up Form</title>
+</head>
+<body>
+  <form>
+    <label>Enter Value:</label>
+    <!-- Set any input type (text, email, number, password) and write any button text -->
+    <input type="" placeholder="Type here...">
+    <button type="submit"></button>
+  </form>
+</body>
+</html>`,
+      solutionCode: `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Sign-Up Form</title>
+</head>
+<body>
+  <form>
+    <label>Enter Email:</label>
+    <input type="email" placeholder="you@example.com" required>
+    <button type="submit">Submit Form</button>
+  </form>
+</body>
+</html>`,
+      hint: 'Set type="email" (or "text", "number", etc.) on <input> and put any label inside <button type="submit">Send</button>.',
       previewMode: 'html',
       validate(code) {
-        const hasEmail = /<input[^>]*type\s*=\s*["']email["'][^>]*>/i.test(code);
-        const hasBtn = /<button[^>]*type\s*=\s*["']submit["'][^>]*>[\s\S]+?<\/button>/i.test(code);
-        if (!hasEmail) {
-          return { ok: false, message: 'Add an <input type="email"> element inside the form.' };
+        const clean = code.replace(/<!--[\s\S]*?-->/g, '');
+        const hasForm = /<form\b[^>]*>[\s\S]*?<\/form>/i.test(clean);
+        const hasInput = /<input\b[^>]*type\s*=\s*(["'])\s*\S+?\s*\1[^>]*>/i.test(clean);
+        const hasBtn = /<button\b[^>]*>[\s\S]*?\S[\s\S]*?<\/button>/i.test(clean);
+        if (!hasForm) {
+          return { ok: false, message: 'Keep your controls inside the <form>...</form> element.' };
+        }
+        if (!hasInput) {
+          return { ok: false, message: 'Give your <input> any valid type="..." (such as "text", "email", or "number").' };
         }
         if (!hasBtn) {
-          return { ok: false, message: 'Add a <button type="submit">...</button> with label text.' };
+          return { ok: false, message: 'Write any button text between <button type="submit"> and </button>.' };
         }
-        return { ok: true, message: 'Excellent! Your HTML sign-up form is complete.' };
+        return { ok: true, message: 'Excellent! Your custom HTML form is complete.' };
       }
     }
   ],
@@ -1086,86 +1260,187 @@ const PRACTICE_DATA = {
       id: 'css-prac-1',
       title: 'Style Heading Color & Size',
       filename: 'style1.css',
-      prompt: 'Apply color and typography properties to a CSS class selector.',
+      prompt: 'Apply any color and any font-size number to a CSS class selector.',
       taskDetail:
-        'Target <code>.banner-title</code> and set <code>color: #2563eb;</code> and <code>font-size: 26px;</code>.',
-      starterCode: `.banner-title {\n  /* Add color and font-size below */\n  \n}`,
-      solutionCode: `.banner-title {\n  color: #2563eb;\n  font-size: 26px;\n}`,
-      hint: 'Inside .banner-title { }, write color: #2563eb; and font-size: 26px;',
+        'Inside <code>.banner-title</code>, enter <strong>any CSS color</strong> (like <code>#2563eb</code>, <code>crimson</code>, or <code>rgb(16, 185, 129)</code>) and <strong>any font-size number</strong> (like <code>28px</code>, <code>36px</code>, or <code>2rem</code>).',
+      starterCode: `.banner-title {
+  font-family: sans-serif;
+  margin: 0;
+  /* Put any color and any font-size number below */
+  color: ;
+  font-size: ;
+}`,
+      solutionCode: `.banner-title {
+  font-family: sans-serif;
+  margin: 0;
+  color: #2563eb;
+  font-size: 28px;
+}`,
+      hint: 'Example: color: royalblue; and font-size: 30px; — any color and any size number work!',
       previewMode: 'css',
-      previewHtml: `<h2 class="banner-title" style="margin:0;font-family:sans-serif;">KNOX Styled Title</h2>`,
+      previewHtml: `<h2 class="banner-title">Custom Styled Heading</h2>`,
       validate(code) {
-        const hasSelector = /\.banner-title\s*\{[\s\S]*\}/.test(code);
-        const hasColor = /color\s*:\s*#2563eb\s*;/i.test(code);
-        const hasSize = /font-size\s*:\s*26px\s*;/i.test(code);
-        if (!hasSelector) return { ok: false, message: 'Keep the .banner-title { ... } selector block.' };
-        if (!hasColor) return { ok: false, message: 'Set color: #2563eb; inside .banner-title.' };
-        if (!hasSize) return { ok: false, message: 'Set font-size: 26px; inside .banner-title.' };
-        return { ok: true, message: 'Nice styling! Both color and font-size are applied.' };
+        const clean = stripCodeComments(code, 'c');
+        const block = /\.banner-title\s*\{([\s\S]*?)\}/.exec(clean);
+        if (!block) return { ok: false, message: 'Keep the .banner-title { ... } selector block.' };
+        const hasColor = /(?:^|;|\s)color\s*:\s*([^\s;{}][^;{}]*)\s*;/i.test(block[1]);
+        const hasSize = /font-size\s*:\s*\d+(?:\.\d+)?\s*(?:px|rem|em|%|pt|vw|vh)\s*;/i.test(block[1]);
+        if (!hasColor) return { ok: false, message: 'Enter any valid color after color: (e.g., color: #2563eb; or color: red;).' };
+        if (!hasSize) return { ok: false, message: 'Enter any number with a unit after font-size: (e.g., font-size: 28px;).' };
+        return { ok: true, message: 'Nice styling! Your custom color and font size are applied.' };
       }
     },
     {
       id: 'css-prac-2',
       title: 'Card Padding & Rounded Corners',
       filename: 'style2.css',
-      prompt: 'Use Box Model properties to give a card breathing room and smooth corners.',
+      prompt: 'Use Box Model properties with any spacing numbers and colors you prefer.',
       taskDetail:
-        'Style <code>.info-box</code> with <code>padding: 20px;</code>, <code>border-radius: 12px;</code>, and <code>background: #eff6ff;</code>.',
-      starterCode: `.info-box {\n  border: 2px solid #3b82f6;\n  /* Add padding, border-radius, and background */\n  \n}`,
-      solutionCode: `.info-box {\n  border: 2px solid #3b82f6;\n  padding: 20px;\n  border-radius: 12px;\n  background: #eff6ff;\n}`,
-      hint: 'Add padding: 20px; border-radius: 12px; and background: #eff6ff; (or background-color).',
+        'Inside <code>.info-box</code>, fill in <strong>any number</strong> for <code>padding</code> (e.g. <code>20px</code>), <strong>any number</strong> for <code>border-radius</code> (e.g. <code>12px</code>), and <strong>any color</strong> for <code>background-color</code>.',
+      starterCode: `.info-box {
+  font-family: sans-serif;
+  color: #1e293b;
+  border: 2px solid #3b82f6;
+  /* Put any numbers for padding & border-radius, and any background color */
+  padding: ;
+  border-radius: ;
+  background-color: ;
+}`,
+      solutionCode: `.info-box {
+  font-family: sans-serif;
+  color: #1e293b;
+  border: 2px solid #3b82f6;
+  padding: 20px;
+  border-radius: 12px;
+  background-color: #eff6ff;
+}`,
+      hint: 'Example: padding: 18px; border-radius: 14px; background-color: #eff6ff; (any numbers & color work!).',
       previewMode: 'css',
-      previewHtml: `<div class="info-box" style="font-family:sans-serif;color:#1e293b;"><strong>KNOX Card</strong> — Clean Box Model Spacing</div>`,
+      previewHtml: `<div class="info-box"><strong>Custom Box Card</strong> — Styled with your own spacing and colors!</div>`,
       validate(code) {
-        const hasPadding = /padding\s*:\s*20px\s*;/i.test(code);
-        const hasRadius = /border-radius\s*:\s*12px\s*;/i.test(code);
-        const hasBg = /background(-color)?\s*:\s*#eff6ff\s*;/i.test(code);
-        if (!hasPadding) return { ok: false, message: 'Add padding: 20px; to .info-box.' };
-        if (!hasRadius) return { ok: false, message: 'Add border-radius: 12px; for rounded corners.' };
-        if (!hasBg) return { ok: false, message: 'Add background: #eff6ff; (or background-color: #eff6ff;).' };
-        return { ok: true, message: 'Spot on! Your card spacing and rounded corners look crisp.' };
+        const clean = stripCodeComments(code, 'c');
+        const block = /\.info-box\s*\{([\s\S]*?)\}/.exec(clean);
+        if (!block) return { ok: false, message: 'Keep the .info-box { ... } selector block.' };
+        const hasPadding = /padding\s*:\s*\d+(?:\.\d+)?(?:px|rem|em|%)?(?:\s+\d+(?:\.\d+)?(?:px|rem|em|%)?)*\s*;/i.test(block[1]);
+        const hasRadius = /border-radius\s*:\s*\d+(?:\.\d+)?(?:px|rem|em|%)?(?:\s+\d+(?:\.\d+)?(?:px|rem|em|%)?)*\s*;/i.test(block[1]);
+        const hasBg = /background(?:-color)?\s*:\s*([^\s;{}][^;{}]*)\s*;/i.test(block[1]);
+        if (!hasPadding) return { ok: false, message: 'Enter any number & unit for padding (e.g., padding: 20px;).' };
+        if (!hasRadius) return { ok: false, message: 'Enter any number & unit for border-radius (e.g., border-radius: 12px;).' };
+        if (!hasBg) return { ok: false, message: 'Enter any color for background-color (e.g., background-color: #eff6ff;).' };
+        return { ok: true, message: 'Spot on! Your custom padding, corner radius, and background look great.' };
       }
     },
     {
       id: 'css-prac-3',
       title: 'Flexbox Row Alignment',
       filename: 'style3.css',
-      prompt: 'Arrange navigation pills horizontally with space between them using Flexbox.',
+      prompt: 'Arrange items horizontally using Flexbox and any alignment or gap spacing.',
       taskDetail:
-        'In <code>.nav-row</code>, set <code>display: flex;</code> and <code>justify-content: space-between;</code>.',
-      starterCode: `.nav-row {\n  padding: 12px;\n  background: #f1f5f9;\n  /* Enable flexbox and space-between */\n  \n}\n.pill { background: #2563eb; color: #fff; padding: 6px 12px; border-radius: 6px; font-family: sans-serif; }`,
-      solutionCode: `.nav-row {\n  padding: 12px;\n  background: #f1f5f9;\n  display: flex;\n  justify-content: space-between;\n}\n.pill { background: #2563eb; color: #fff; padding: 6px 12px; border-radius: 6px; font-family: sans-serif; }`,
-      hint: 'Add display: flex; and justify-content: space-between; inside .nav-row.',
+        'Inside <code>.nav-row</code>, set <code>display: flex;</code>, choose <strong>any alignment</strong> for <code>justify-content</code> (such as <code>space-between</code>, <code>center</code>, or <code>space-around</code>), and use <strong>any gap number</strong>.',
+      starterCode: `.nav-row {
+  padding: 12px;
+  background-color: #f1f5f9;
+  border-radius: 8px;
+  /* Set display: flex;, any justify-content value, and any gap number */
+  display: ;
+  justify-content: ;
+  gap: 12px;
+}
+
+.pill {
+  background-color: #2563eb;
+  color: #ffffff;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-family: sans-serif;
+}`,
+      solutionCode: `.nav-row {
+  padding: 12px;
+  background-color: #f1f5f9;
+  border-radius: 8px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.pill {
+  background-color: #2563eb;
+  color: #ffffff;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-family: sans-serif;
+}`,
+      hint: 'Set display: flex; and justify-content: space-between; (or center, space-around, space-evenly, flex-start, flex-end).',
       previewMode: 'css',
-      previewHtml: `<div class="nav-row"><span class="pill">KNOX</span><span class="pill">Tutorials</span><span class="pill">Practice</span></div>`,
+      previewHtml: `<div class="nav-row"><span class="pill">Item 1</span><span class="pill">Item 2</span><span class="pill">Item 3</span></div>`,
       validate(code) {
-        const hasFlex = /display\s*:\s*flex\s*;/i.test(code);
-        const hasJustify = /justify-content\s*:\s*space-between\s*;/i.test(code);
-        if (!hasFlex) return { ok: false, message: 'Add display: flex; inside .nav-row.' };
-        if (!hasJustify) return { ok: false, message: 'Add justify-content: space-between; to distribute the items.' };
+        const clean = stripCodeComments(code, 'c');
+        const block = /\.nav-row\s*\{([\s\S]*?)\}/.exec(clean);
+        if (!block) return { ok: false, message: 'Keep the .nav-row { ... } selector block.' };
+        const hasFlex = /display\s*:\s*(?:inline-)?flex\s*;/i.test(block[1]);
+        const hasJustify = /justify-content\s*:\s*(flex-start|flex-end|center|space-between|space-around|space-evenly|start|end|left|right)\s*;/i.test(block[1]);
+        if (!hasFlex) return { ok: false, message: 'Set display: flex; inside .nav-row.' };
+        if (!hasJustify) {
+          return {
+            ok: false,
+            message: 'Set justify-content to any alignment (e.g., space-between, center, space-around, or flex-start).'
+          };
+        }
         return { ok: true, message: 'Perfect Flexbox layout!' };
       }
     },
     {
       id: 'css-prac-4',
-      title: 'Three-Column CSS Grid',
+      title: 'Multi-Column CSS Grid',
       filename: 'style4.css',
-      prompt: 'Build an equal 3-column layout using CSS Grid.',
+      prompt: 'Build a multi-column layout using CSS Grid with any column count and gap size.',
       taskDetail:
-        'Inside <code>.grid-box</code>, set <code>display: grid;</code>, <code>grid-template-columns: repeat(3, 1fr);</code>, and <code>gap: 10px;</code>.',
-      starterCode: `.grid-box {\n  /* Define 3-column CSS Grid with 10px gap */\n  \n}\n.cell { background: #dbeafe; color: #1e40af; padding: 12px; text-align: center; border-radius: 6px; font-family: sans-serif; font-weight: bold; }`,
-      solutionCode: `.grid-box {\n  display: grid;\n  grid-template-columns: repeat(3, 1fr);\n  gap: 10px;\n}\n.cell { background: #dbeafe; color: #1e40af; padding: 12px; text-align: center; border-radius: 6px; font-family: sans-serif; font-weight: bold; }`,
-      hint: 'Write display: grid; grid-template-columns: repeat(3, 1fr); and gap: 10px;',
+        'Inside <code>.grid-box</code>, set <code>display: grid;</code>, define <strong>any column layout</strong> for <code>grid-template-columns</code> (e.g. <code>repeat(3, 1fr)</code> or <code>repeat(2, 1fr)</code>), and enter <strong>any number</strong> for <code>gap</code>.',
+      starterCode: `.grid-box {
+  /* Set display: grid;, any grid-template-columns, and any gap number */
+  display: ;
+  grid-template-columns: ;
+  gap: ;
+}
+
+.cell {
+  background-color: #dbeafe;
+  color: #1e40af;
+  padding: 12px;
+  text-align: center;
+  border-radius: 6px;
+  font-family: sans-serif;
+  font-weight: bold;
+}`,
+      solutionCode: `.grid-box {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.cell {
+  background-color: #dbeafe;
+  color: #1e40af;
+  padding: 12px;
+  text-align: center;
+  border-radius: 6px;
+  font-family: sans-serif;
+  font-weight: bold;
+}`,
+      hint: 'Example: display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; (any column count and gap number work!).',
       previewMode: 'css',
-      previewHtml: `<div class="grid-box"><div class="cell">1</div><div class="cell">2</div><div class="cell">3</div></div>`,
+      previewHtml: `<div class="grid-box"><div class="cell">1</div><div class="cell">2</div><div class="cell">3</div><div class="cell">4</div><div class="cell">5</div><div class="cell">6</div></div>`,
       validate(code) {
-        const hasGrid = /display\s*:\s*grid\s*;/i.test(code);
-        const hasCols = /grid-template-columns\s*:\s*(repeat\(\s*3\s*,\s*1fr\s*\)|1fr\s+1fr\s+1fr)\s*;/i.test(code);
-        const hasGap = /gap\s*:\s*10px\s*;/i.test(code);
-        if (!hasGrid) return { ok: false, message: 'Set display: grid; on .grid-box.' };
-        if (!hasCols) return { ok: false, message: 'Set grid-template-columns: repeat(3, 1fr); for 3 equal columns.' };
-        if (!hasGap) return { ok: false, message: 'Add gap: 10px; between grid cells.' };
-        return { ok: true, message: 'Awesome! Your 3-column CSS Grid is responsive and clean.' };
+        const clean = stripCodeComments(code, 'c');
+        const block = /\.grid-box\s*\{([\s\S]*?)\}/.exec(clean);
+        if (!block) return { ok: false, message: 'Keep the .grid-box { ... } selector block.' };
+        const hasGrid = /display\s*:\s*(?:inline-)?grid\s*;/i.test(block[1]);
+        const hasCols = /grid-template-columns\s*:\s*([^\s;{}][^;{}]*)\s*;/i.test(block[1]);
+        const hasGap = /(?:grid-)?gap\s*:\s*\d+(?:\.\d+)?(?:px|rem|em|%)?(?:\s+\d+(?:\.\d+)?(?:px|rem|em|%)?)*\s*;/i.test(block[1]);
+        if (!hasGrid) return { ok: false, message: 'Set display: grid; inside .grid-box.' };
+        if (!hasCols) return { ok: false, message: 'Define any columns in grid-template-columns (e.g., repeat(3, 1fr) or 1fr 1fr).' };
+        if (!hasGap) return { ok: false, message: 'Enter any spacing number for gap (e.g., gap: 10px;).' };
+        return { ok: true, message: 'Awesome! Your custom CSS Grid is responsive and clean.' };
       }
     }
   ],
@@ -1173,84 +1448,232 @@ const PRACTICE_DATA = {
   java: [
     {
       id: 'java-prac-1',
-      title: 'Print a Welcome Message',
+      title: 'Print a Console Message',
       filename: 'Practice1.java',
-      prompt: 'Output text to the standard console inside Java\'s main method.',
+      prompt: 'Output any message or number to the console inside Java\'s main method.',
       taskDetail:
-        'Use <code>System.out.println(...)</code> to print the exact message <code>Hello KNOX</code>.',
-      starterCode: `public class Practice1 {\n    public static void main(String[] args) {\n        // Print "Hello KNOX" below\n        \n    }\n}`,
-      solutionCode: `public class Practice1 {\n    public static void main(String[] args) {\n        System.out.println("Hello KNOX");\n    }\n}`,
-      hint: 'Write System.out.println("Hello KNOX"); (remember the semicolon at the end!).',
-      simulatedOutput: 'Hello KNOX',
+        'Using the complete Java class structure below, write <strong>any text (inside quotes) or any number</strong> inside <code>System.out.println(...)</code>.',
+      starterCode: `public class Practice1 {
+    public static void main(String[] args) {
+        // Put any message in quotes or any number inside println(...)
+        System.out.println("");
+    }
+}`,
+      solutionCode: `public class Practice1 {
+    public static void main(String[] args) {
+        System.out.println("Hello, Java World!");
+    }
+}`,
+      hint: 'Write any text like System.out.println("My Custom Message!"); or any number like System.out.println(2026);',
+      simulatedOutput: 'Hello, Java World!',
       validate(code) {
-        if (!/System\.out\.print(ln)?\s*\(\s*"Hello KNOX"\s*\)\s*;/.test(code)) {
-          return {
-            ok: false,
-            message: 'Use System.out.println("Hello KNOX"); with exact capitalization and a trailing semicolon (;).'
-          };
+        const clean = stripCodeComments(code, 'c');
+        if (!/class\s+\w+/.test(clean) || !/main\s*\(\s*String\s*\[\s*\]\s*\w+\s*\)/.test(clean)) {
+          return { ok: false, message: 'Keep the class and public static void main(String[] args) structure.' };
         }
-        return { ok: true, message: 'Compiled & executed! Output matches "Hello KNOX".' };
+        const regex = /System\.out\.print(ln)?\s*\(([\s\S]*?)\)\s*;/g;
+        const outputs = [];
+        let m;
+        while ((m = regex.exec(clean)) !== null) {
+          const isLn = Boolean(m[1]);
+          const arg = m[2].trim();
+          if (!arg) continue;
+          const strMatch = /^"(.*)"$/s.exec(arg);
+          if (strMatch) {
+            if (!strMatch[1].trim()) continue;
+            outputs.push(strMatch[1] + (isLn ? '\n' : ''));
+          } else {
+            outputs.push(arg.replace(/^"|"$/g, '') + (isLn ? '\n' : ''));
+          }
+        }
+        const finalOut = outputs.join('').replace(/\n$/, '');
+        if (!finalOut) {
+          return { ok: false, message: 'Type any non-empty text or number inside System.out.println("...");' };
+        }
+        return { ok: true, message: `Compiled & executed! Printed "${finalOut}".`, output: finalOut };
       }
     },
     {
       id: 'java-prac-2',
-      title: 'Sum Two Integers',
+      title: 'Add Any Two Numbers',
       filename: 'Practice2.java',
-      prompt: 'Declare integer variables and print their calculated sum.',
+      prompt: 'Assign any two numbers to variables and print their calculated sum.',
       taskDetail:
-        'Declare <code>int a = 15;</code> and <code>int b = 25;</code>, then print their sum using <code>System.out.println(a + b);</code>.',
-      starterCode: `public class Practice2 {\n    public static void main(String[] args) {\n        // Declare int a = 15 and int b = 25, then print a + b\n        \n    }\n}`,
-      solutionCode: `public class Practice2 {\n    public static void main(String[] args) {\n        int a = 15;\n        int b = 25;\n        System.out.println(a + b);\n    }\n}`,
-      hint: 'Declare int a = 15; int b = 25; and call System.out.println(a + b);',
+        'Enter <strong>any numbers you want</strong> for <code>a</code> and <code>b</code> (integers or decimals, positive or negative), and run the program to calculate and print their sum.',
+      starterCode: `public class Practice2 {
+    public static void main(String[] args) {
+        // Put any two numbers you want for a and b!
+        int a = ;
+        int b = ;
+        int sum = a + b;
+
+        System.out.println(sum);
+    }
+}`,
+      solutionCode: `public class Practice2 {
+    public static void main(String[] args) {
+        int a = 15;
+        int b = 25;
+        int sum = a + b;
+
+        System.out.println(sum);
+    }
+}`,
+      hint: 'Fill in any two numbers like int a = 45; and int b = 55; (or use double for decimals!).',
       simulatedOutput: '40',
       validate(code) {
-        const hasA = /int\s+a\s*=\s*15\s*;/.test(code);
-        const hasB = /int\s+b\s*=\s*25\s*;/.test(code);
-        const hasPrint = /System\.out\.print(ln)?\s*\(\s*(a\s*\+\s*b|sum)\s*\)\s*;/.test(code);
-        if (!hasA || !hasB) return { ok: false, message: 'Declare both int a = 15; and int b = 25;' };
-        if (!hasPrint) return { ok: false, message: 'Print the result using System.out.println(a + b);' };
-        return { ok: true, message: 'Correct! 15 + 25 outputs 40.' };
+        const clean = stripCodeComments(code, 'c');
+        const varRegex = /\b(?:int|double|float|long)\s+(\w+)\s*=\s*(-?\d+(?:\.\d+)?)\s*;/g;
+        const vars = [];
+        let m;
+        while ((m = varRegex.exec(clean)) !== null) {
+          vars.push({ name: m[1], val: Number(m[2]) });
+        }
+        if (vars.length < 2) {
+          return { ok: false, message: 'Enter any number for both variables (for example: int a = 10; and int b = 20;).' };
+        }
+        const [v1, v2] = vars;
+        const hasAdd = new RegExp(`\\b${v1.name}\\s*\\+\\s*${v2.name}\\b|\\b${v2.name}\\s*\\+\\s*${v1.name}\\b`).test(clean);
+        const printMatch = /System\.out\.print(ln)?\s*\(([\s\S]+?)\)\s*;/.exec(clean);
+        if (!hasAdd) {
+          return { ok: false, message: `Add your two variables together using ${v1.name} + ${v2.name}.` };
+        }
+        if (!printMatch) {
+          return { ok: false, message: 'Keep System.out.println(...) to display the sum.' };
+        }
+        const sumVal = Number((v1.val + v2.val).toFixed(6));
+        const prefixMatch = /^"([^"]*)"\s*\+/.exec(printMatch[2].trim());
+        const outText = prefixMatch ? `${prefixMatch[1]}${sumVal}` : String(sumVal);
+        return {
+          ok: true,
+          message: `Correct! ${v1.val} + ${v2.val} = ${sumVal}.`,
+          output: outText
+        };
       }
     },
     {
       id: 'java-prac-3',
       title: 'Pass / Fail Conditional',
       filename: 'Practice3.java',
-      prompt: 'Use an if-else statement in Java to check whether a student passed.',
+      prompt: 'Use an if-else statement in Java with any score and threshold numbers you want.',
       taskDetail:
-        'Write an <code>if (score &gt;= 75)</code> block that prints <code>"Passed"</code>, and an <code>else</code> block that prints <code>"Try Again"</code>.',
-      starterCode: `public class Practice3 {\n    public static void main(String[] args) {\n        int score = 85;\n        // Write your if-else check here\n        \n    }\n}`,
-      solutionCode: `public class Practice3 {\n    public static void main(String[] args) {\n        int score = 85;\n        if (score >= 75) {\n            System.out.println("Passed");\n        } else {\n            System.out.println("Try Again");\n        }\n    }\n}`,
-      hint: 'Use if (score >= 75) { System.out.println("Passed"); } else { System.out.println("Try Again"); }',
+        'Enter <strong>any number</strong> for <code>score</code> (and feel free to customize the <code>if</code> cutoff number and the printed messages inside <code>if</code> and <code>else</code>!).',
+      starterCode: `public class Practice3 {
+    public static void main(String[] args) {
+        // Put any score number, any cutoff number, and any messages!
+        int score = ;
+
+        if (score >= 75) {
+            System.out.println("Passed");
+        } else {
+            System.out.println("Try Again");
+        }
+    }
+}`,
+      solutionCode: `public class Practice3 {
+    public static void main(String[] args) {
+        int score = 85;
+
+        if (score >= 75) {
+            System.out.println("Passed");
+        } else {
+            System.out.println("Try Again");
+        }
+    }
+}`,
+      hint: 'Give score any number, such as int score = 90; or int score = 60;, then click Run & Check Answer!',
       simulatedOutput: 'Passed',
       validate(code) {
-        const hasIf = /if\s*\(\s*score\s*>=\s*75\s*\)/.test(code);
-        const hasPassed = /System\.out\.print(ln)?\s*\(\s*"Passed"\s*\)\s*;/.test(code);
-        const hasElse = /\belse\b/.test(code);
-        if (!hasIf) return { ok: false, message: 'Check the condition using if (score >= 75).' };
-        if (!hasPassed || !hasElse) {
-          return { ok: false, message: 'Make sure you print "Passed" in the if block and include an else branch.' };
+        const clean = stripCodeComments(code, 'c');
+        const scoreMatch = /\b(?:int|double|float)\s+(\w+)\s*=\s*(-?\d+(?:\.\d+)?)\s*;/.exec(clean);
+        if (!scoreMatch) {
+          return { ok: false, message: 'Enter any number for your variable (e.g., int score = 85;).' };
         }
-        return { ok: true, message: 'Great conditional logic! Since score is 85, it prints "Passed".' };
+        const varName = scoreMatch[1];
+        const varVal = Number(scoreMatch[2]);
+        const ifElseMatch = new RegExp(
+          `if\\s*\\(\\s*${varName}\\s*(>=|<=|==|!=|>|<)\\s*(-?\\d+(?:\\.\\d+)?)\\s*\\)\\s*\\{([\\s\\S]*?)\\}\\s*else\\s*\\{([\\s\\S]*?)\\}`
+        ).exec(clean);
+        if (!ifElseMatch) {
+          return { ok: false, message: `Keep an if (${varName} >= ...) { ... } else { ... } structure with any cutoff number.` };
+        }
+        const op = ifElseMatch[1];
+        const cutoff = Number(ifElseMatch[2]);
+        const ifPrint = /System\.out\.print(?:ln)?\s*\(\s*"([^"]*)"\s*\)\s*;/.exec(ifElseMatch[3]);
+        const elsePrint = /System\.out\.print(?:ln)?\s*\(\s*"([^"]*)"\s*\)\s*;/.exec(ifElseMatch[4]);
+        if (!ifPrint || !elsePrint) {
+          return { ok: false, message: 'Include System.out.println("..."); messages in both the if and else blocks.' };
+        }
+        const passed = compareValues(varVal, op, cutoff);
+        const chosenOut = passed ? ifPrint[1] : elsePrint[1];
+        return {
+          ok: true,
+          message: `Great conditional logic! (${varVal} ${op} ${cutoff} is ${passed}) -> "${chosenOut}".`,
+          output: chosenOut
+        };
       }
     },
     {
       id: 'java-prac-4',
-      title: 'For Loop 1 to 5',
+      title: 'Custom For Loop Counter',
       filename: 'Practice4.java',
-      prompt: 'Use a standard Java for loop to count from 1 through 5.',
+      prompt: 'Use a Java for loop to count between any start and end numbers you choose.',
       taskDetail:
-        'Write a <code>for</code> loop starting at <code>int i = 1</code> while <code>i &lt;= 5</code> with <code>i++</code>, printing <code>i</code> each iteration.',
-      starterCode: `public class Practice4 {\n    public static void main(String[] args) {\n        // Loop i from 1 to 5 and print i\n        \n    }\n}`,
-      solutionCode: `public class Practice4 {\n    public static void main(String[] args) {\n        for (int i = 1; i <= 5; i++) {\n            System.out.println(i);\n        }\n    }\n}`,
-      hint: 'Write for (int i = 1; i <= 5; i++) { System.out.println(i); }',
+        'Enter <strong>any start integer</strong> and <strong>any end integer</strong> in the <code>for</code> loop header below to print every number in your range.',
+      starterCode: `public class Practice4 {
+    public static void main(String[] args) {
+        // Put any start number and any end number in the loop header!
+        for (int i = ; i <= ; i++) {
+            System.out.println(i);
+        }
+    }
+}`,
+      solutionCode: `public class Practice4 {
+    public static void main(String[] args) {
+        for (int i = 1; i <= 5; i++) {
+            System.out.println(i);
+        }
+    }
+}`,
+      hint: 'Example: for (int i = 1; i <= 10; i++) — you can use any start and end numbers!',
       simulatedOutput: '1\n2\n3\n4\n5',
       validate(code) {
-        const hasFor = /for\s*\(\s*int\s+i\s*=\s*1\s*;\s*i\s*(<=\s*5|<\s*6)\s*;\s*(i\+\+|\+\+i|i\s*\+=\s*1)\s*\)/.test(code);
-        const hasPrint = /System\.out\.print(ln)?\s*\(\s*i\s*\)\s*;/.test(code);
-        if (!hasFor) return { ok: false, message: 'Write a for loop header: for (int i = 1; i <= 5; i++).' };
-        if (!hasPrint) return { ok: false, message: 'Inside the loop, call System.out.println(i);' };
-        return { ok: true, message: 'Loop executed cleanly from 1 to 5!' };
+        const clean = stripCodeComments(code, 'c');
+        const forMatch = /for\s*\(\s*(?:int\s+)?(\w+)\s*=\s*(-?\d+)\s*;\s*\1\s*(<=|<|>=|>)\s*(-?\d+)\s*;\s*([^)]+)\)\s*\{([\s\S]*?)\}/.exec(clean);
+        if (!forMatch) {
+          return { ok: false, message: 'Fill in start and end integers in your for loop (e.g., for (int i = 1; i <= 5; i++)).' };
+        }
+        const [, v, startStr, op, endStr, stepExpr, body] = forMatch;
+        if (!new RegExp(`System\\.out\\.print(?:ln)?\\s*\\([^)]*\\b${v}\\b[^)]*\\)\\s*;`).test(body)) {
+          return { ok: false, message: `Inside the loop, print the loop variable with System.out.println(${v});` };
+        }
+        let step = 1;
+        const incMatch = /\+=\s*(\d+)|\+\s*(\d+)/.exec(stepExpr);
+        const decMatch = /-=\s*(\d+)|-\s*(\d+)/.exec(stepExpr);
+        if (stepExpr.includes('--')) step = -1;
+        else if (decMatch) step = -Number(decMatch[1] || decMatch[2]);
+        else if (incMatch) step = Number(incMatch[1] || incMatch[2]);
+
+        const start = Number(startStr);
+        const end = Number(endStr);
+        if (step === 0 || (step > 0 && (op === '>' || op === '>=') && start > end && !compareValues(start + step, op, end) === false)) {
+          // Guard infinite direction
+        }
+        const lines = [];
+        let cur = start;
+        let guard = 0;
+        while (compareValues(cur, op, end) && guard < 100) {
+          lines.push(String(cur));
+          cur += step;
+          guard++;
+          if ((step > 0 && (op === '>' || op === '>=') && cur > end + 100) || (step < 0 && (op === '<' || op === '<=') && cur < end - 100)) {
+            return { ok: false, message: 'Your loop step moves away from the end condition (infinite loop). Adjust <= / >= or i++ / i--.' };
+          }
+        }
+        const out = lines.length
+          ? lines.join('\n') + (compareValues(cur, op, end) ? '\n... (output capped at 100 lines)' : '')
+          : '(Loop ran 0 times because the start value already failed the condition)';
+        return { ok: true, message: `Loop executed cleanly starting at ${start}!`, output: out };
       }
     }
   ],
@@ -1260,81 +1683,206 @@ const PRACTICE_DATA = {
       id: 'py-prac-1',
       title: 'Variables & f-String Output',
       filename: 'practice1.py',
-      prompt: 'Store a string in a Python variable and display it with an f-string.',
+      prompt: 'Store any value in a Python variable and format it inside an f-string.',
       taskDetail:
-        'Assign <code>platform = "KNOX"</code> and use <code>print(f"Welcome to {platform}")</code>.',
-      starterCode: `# Assign platform and print the f-string\n`,
-      solutionCode: `platform = "KNOX"\nprint(f"Welcome to {platform}")`,
-      hint: 'Set platform = "KNOX" on line 1, then print(f"Welcome to {platform}") on line 2.',
-      simulatedOutput: 'Welcome to KNOX',
+        'Put <strong>any text or number</strong> inside the variable below and customize the <code>f"..."</code> message however you like!',
+      starterCode: `# Put any text or number in your variable and customize the f-string!
+name = ""
+message = f"Welcome, {name}!"
+
+print(message)`,
+      solutionCode: `name = "KNOX Learner"
+message = f"Welcome, {name}!"
+
+print(message)`,
+      hint: 'Type any text or number inside name = "..." (for example: name = "Alex" or name = 100).',
+      simulatedOutput: 'Welcome, KNOX Learner!',
       validate(code) {
-        const hasVar = /platform\s*=\s*["']KNOX["']/.test(code);
-        const hasPrint = /print\s*\(\s*f["']Welcome to \{platform\}["']\s*\)/.test(code);
-        if (!hasVar) return { ok: false, message: 'Define the variable platform = "KNOX".' };
-        if (!hasPrint) return { ok: false, message: 'Use print(f"Welcome to {platform}") to format the output.' };
-        return { ok: true, message: 'Clean Pythonic f-string! Output: Welcome to KNOX.' };
+        const clean = stripCodeComments(code, 'python');
+        const vars = {};
+        const assignRegex = /^[ \t]*(\w+)[ \t]*=[ \t]*(?:"([^"]*)"|'([^']*)'|(-?\d+(?:\.\d+)?))[ \t]*$/gm;
+        let m;
+        while ((m = assignRegex.exec(clean)) !== null) {
+          const val = m[2] ?? m[3] ?? m[4];
+          if (String(val).trim() !== '') {
+            vars[m[1]] = String(val);
+          }
+        }
+        if (Object.keys(vars).length === 0) {
+          return { ok: false, message: 'Assign any non-empty text or number to a variable (e.g., name = "Alex").' };
+        }
+        const fMatch = /f(?:"([^"]*\{(\w+)\}[^"]*)"|'([^']*\{(\w+)\}[^']*)')/.exec(clean);
+        if (!fMatch) {
+          return { ok: false, message: 'Use an f-string containing {variable_name}, such as f"Welcome, {name}!".' };
+        }
+        const template = fMatch[1] ?? fMatch[3];
+        if (!/\bprint\s*\(/.test(clean)) {
+          return { ok: false, message: 'Call print(...) to display your formatted f-string.' };
+        }
+        const rendered = template.replace(/\{(\w+)\}/g, (_, k) => (k in vars ? vars[k] : `{${k}}`));
+        if (/\{\w+\}/.test(rendered)) {
+          return { ok: false, message: 'Make sure the variable inside {...} has a non-empty value assigned above it.' };
+        }
+        return { ok: true, message: `Clean Pythonic f-string! Output: ${rendered}`, output: rendered };
       }
     },
     {
       id: 'py-prac-2',
       title: 'Append to a List',
       filename: 'practice2.py',
-      prompt: 'Modify a Python list dynamically using the .append() method.',
+      prompt: 'Modify a Python list dynamically using .append() with any text or number.',
       taskDetail:
-        'Use <code>topics.append("SQL")</code> to add <code>"SQL"</code> to the list, then call <code>print(topics)</code>.',
-      starterCode: `topics = ["HTML", "CSS", "Python"]\n# Append "SQL" and print topics\n`,
-      solutionCode: `topics = ["HTML", "CSS", "Python"]\ntopics.append("SQL")\nprint(topics)`,
-      hint: 'Call topics.append("SQL") and then print(topics).',
+        'Customize the list with <strong>any items or numbers</strong>, pass <strong>any value you want</strong> into <code>.append(...)</code>, and print the updated list.',
+      starterCode: `# Customize the list and pass any string or number into .append(...)!
+topics = ["HTML", "CSS", "Python"]
+
+topics.append()
+
+print(topics)`,
+      solutionCode: `topics = ["HTML", "CSS", "Python"]
+
+topics.append("SQL")
+
+print(topics)`,
+      hint: 'Put any string or number inside .append(...), such as topics.append("Java") or topics.append(99).',
       simulatedOutput: "['HTML', 'CSS', 'Python', 'SQL']",
       validate(code) {
-        const hasAppend = /topics\.append\s*\(\s*["']SQL["']\s*\)/.test(code);
-        const hasPrint = /print\s*\(\s*topics\s*\)/.test(code);
-        if (!hasAppend) return { ok: false, message: 'Call topics.append("SQL") to add "SQL" to the list.' };
-        if (!hasPrint) return { ok: false, message: 'Call print(topics) on the final line.' };
-        return { ok: true, message: 'Great work! "SQL" was appended to the topics list.' };
+        const clean = stripCodeComments(code, 'python');
+        const listMatch = /(\w+)\s*=\s*\[([^\]]*)\]/.exec(clean);
+        if (!listMatch) {
+          return { ok: false, message: 'Define a list using square brackets, e.g., topics = ["HTML", "CSS"].' };
+        }
+        const listVar = listMatch[1];
+        const rawItems = listMatch[2]
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean);
+
+        const appendRegex = new RegExp(`\\b${listVar}\\.append\\s*\\(\\s*([^)]*?)\\s*\\)`, 'g');
+        const appended = [];
+        let m;
+        while ((m = appendRegex.exec(clean)) !== null) {
+          if (m[1] !== '') appended.push(m[1]);
+        }
+        if (appended.length === 0) {
+          return { ok: false, message: `Put any text (in quotes) or any number inside ${listVar}.append(...)!` };
+        }
+        if (!new RegExp(`\\bprint\\s*\\(\\s*${listVar}\\s*\\)`).test(clean)) {
+          return { ok: false, message: `Call print(${listVar}) to output your updated list.` };
+        }
+        const formatItem = (tok) => {
+          const strM = /^["'](.*)["']$/.exec(tok);
+          if (strM) return `'${strM[1]}'`;
+          return tok;
+        };
+        const allFormatted = [...rawItems, ...appended].map(formatItem);
+        const out = `[${allFormatted.join(', ')}]`;
+        return { ok: true, message: `Great work! Appended value(s) to ${listVar}.`, output: out };
       }
     },
     {
       id: 'py-prac-3',
       title: 'Write a Reusable Function',
       filename: 'practice3.py',
-      prompt: 'Define a Python function with def and return the square of a number.',
+      prompt: 'Define a Python function with def and pass any number you want into it.',
       taskDetail:
-        'Define <code>def square(n):</code> that returns <code>n * n</code> (or <code>n ** 2</code>), then call <code>print(square(6))</code>.',
-      starterCode: `# Define square(n) and print square(6)\n`,
-      solutionCode: `def square(n):\n    return n ** 2\n\nprint(square(6))`,
-      hint: 'Write def square(n): followed by an indented return n * n, then print(square(6)).',
+        'Using the function structure below, feel free to customize the math formula in <code>return</code> and pass <strong>any number you want</strong> into <code>square(...)</code>!',
+      starterCode: `# Customize the formula if you want, and put any number inside square(...)!
+def square(n):
+    return n * n
+
+result = square()
+print(result)`,
+      solutionCode: `def square(n):
+    return n * n
+
+result = square(6)
+print(result)`,
+      hint: 'Put any number inside square(...), for example: result = square(9) or print(square(12)).',
       simulatedOutput: '36',
       validate(code) {
-        const hasDef = /def\s+square\s*\(\s*n\s*\)\s*:/.test(code);
-        const hasReturn = /return\s+(n\s*\*\s*n|n\s*\*\*\s*2)/.test(code);
-        const hasCall = /print\s*\(\s*square\s*\(\s*6\s*\)\s*\)/.test(code);
-        if (!hasDef) return { ok: false, message: 'Start your function with def square(n):' };
-        if (!hasReturn) return { ok: false, message: 'Return n * n or n ** 2 inside square(n).' };
-        if (!hasCall) return { ok: false, message: 'Test your function with print(square(6)).' };
-        return { ok: true, message: 'Awesome! square(6) returned 36.' };
+        const clean = stripCodeComments(code, 'python');
+        const defMatch = /def\s+(\w+)\s*\(\s*(\w+)\s*\)\s*:\s*\n\s+return\s+([^\n]+)/.exec(clean);
+        if (!defMatch) {
+          return { ok: false, message: 'Keep a function header def name(n): followed by an indented return expression.' };
+        }
+        const [, fnName, param, expr] = defMatch;
+        const callMatch = new RegExp(`\\b${fnName}\\s*\\(\\s*(-?\\d+(?:\\.\\d+)?)\\s*\\)`).exec(clean);
+        if (!callMatch) {
+          return { ok: false, message: `Pass any number inside ${fnName}(...), for example ${fnName}(8)!` };
+        }
+        if (!/\bprint\s*\(/.test(clean)) {
+          return { ok: false, message: 'Call print(...) to display the returned result.' };
+        }
+        const argVal = Number(callMatch[1]);
+        let calcOut = String(argVal * argVal);
+        const safeExpr = expr.trim().replace(new RegExp(`\\b${param}\\b`, 'g'), `(${argVal})`);
+        if (/^[0-9+\-*/%().\s]+$/.test(safeExpr)) {
+          try {
+            const evaluated = Function(`"use strict"; return (${safeExpr});`)();
+            if (typeof evaluated === 'number' && Number.isFinite(evaluated)) {
+              calcOut = String(Number(evaluated.toFixed(6)));
+            }
+          } catch {
+            // fallback
+          }
+        }
+        return { ok: true, message: `Awesome! ${fnName}(${argVal}) returned ${calcOut}.`, output: calcOut };
       }
     },
     {
       id: 'py-prac-4',
       title: 'Filter Numbers with a Loop',
       filename: 'practice4.py',
-      prompt: 'Combine a Python for loop and an if condition to filter values.',
+      prompt: 'Combine a Python for loop and an if condition using any numbers you want.',
       taskDetail:
-        'Loop through <code>nums</code> with <code>for n in nums:</code> and print only numbers where <code>n &gt; 20</code>.',
-      starterCode: `nums = [12, 25, 8, 34]\n# Loop through nums and print values > 20\n`,
-      solutionCode: `nums = [12, 25, 8, 34]\nfor n in nums:\n    if n > 20:\n        print(n)`,
-      hint: 'Use for n in nums: then indent if n > 20: and indent print(n).',
-      simulatedOutput: '25\n34',
+        'Put <strong>any numbers you want</strong> inside the <code>nums</code> list and enter <strong>any comparison number</strong> in the <code>if</code> line to filter and print matching values.',
+      starterCode: `# Put any numbers in nums and enter any cutoff number after > (or <, >=, <=)!
+nums = [12, 25, 8, 34, 50]
+
+for n in nums:
+    if n > :
+        print(n)`,
+      solutionCode: `nums = [12, 25, 8, 34, 50]
+
+for n in nums:
+    if n > 20:
+        print(n)`,
+      hint: 'Enter any number after >, for example: if n > 15: (you can also edit the numbers in nums!).',
+      simulatedOutput: '25\n34\n50',
       validate(code) {
-        const hasFor = /for\s+(\w+)\s+in\s+nums\s*:/.exec(code);
-        if (!hasFor) return { ok: false, message: 'Write a loop like: for n in nums:' };
-        const v = hasFor[1];
-        const hasIf = new RegExp(`if\\s+${v}\\s*>\\s*20\\s*:`).test(code);
-        const hasPrint = new RegExp(`print\\s*\\(\\s*${v}\\s*\\)`).test(code);
-        if (!hasIf) return { ok: false, message: `Add an indented condition: if ${v} > 20:` };
-        if (!hasPrint) return { ok: false, message: `Print the matching variable with print(${v}).` };
-        return { ok: true, message: 'Spot on! Only 25 and 34 are printed.' };
+        const clean = stripCodeComments(code, 'python');
+        const listMatch = /(\w+)\s*=\s*\[([^\]]+)\]/.exec(clean);
+        if (!listMatch) {
+          return { ok: false, message: 'Define a list of numbers, such as nums = [10, 25, 40].' };
+        }
+        const listName = listMatch[1];
+        const numbers = listMatch[2]
+          .split(',')
+          .map((s) => Number(s.trim()))
+          .filter((n) => !Number.isNaN(n));
+        if (numbers.length === 0) {
+          return { ok: false, message: `Put at least one number inside ${listName} = [...].` };
+        }
+        const forMatch = new RegExp(`for\\s+(\\w+)\\s+in\\s+${listName}\\s*:`).exec(clean);
+        if (!forMatch) {
+          return { ok: false, message: `Keep the loop header: for n in ${listName}:` };
+        }
+        const v = forMatch[1];
+        const ifMatch = new RegExp(`if\\s+${v}\\s*(>=|<=|==|!=|>|<)\\s*(-?\\d+(?:\\.\\d+)?)\\s*:`).exec(clean);
+        if (!ifMatch) {
+          return { ok: false, message: `Enter any number in your condition, e.g., if ${v} > 20:` };
+        }
+        if (!new RegExp(`print\\s*\\(\\s*${v}\\s*\\)`).test(clean)) {
+          return { ok: false, message: `Print matching numbers inside the if block with print(${v}).` };
+        }
+        const [, op, cutoffStr] = ifMatch;
+        const cutoff = Number(cutoffStr);
+        const matched = numbers.filter((num) => compareValues(num, op, cutoff));
+        const out = matched.length
+          ? matched.join('\n')
+          : `(0 numbers in [${numbers.join(', ')}] matched ${v} ${op} ${cutoff})`;
+        return { ok: true, message: `Spot on! Filtered ${listName} where ${v} ${op} ${cutoff}.`, output: out };
       }
     }
   ],
@@ -1342,81 +1890,182 @@ const PRACTICE_DATA = {
   sql: [
     {
       id: 'sql-prac-1',
-      title: 'Select Specific Columns',
+      title: 'Select Columns from a Table',
       filename: 'query1.sql',
-      prompt: 'Retrieve specific columns from the students table using SELECT.',
+      prompt: 'Retrieve any columns (or *) from the students table using SELECT.',
       taskDetail:
-        'Write a SQL query to <code>SELECT full_name, course FROM students;</code>.',
-      starterCode: `-- Fetch full_name and course from students\n`,
-      solutionCode: `SELECT full_name, course\nFROM students;`,
-      hint: 'Write SELECT full_name, course FROM students;',
-      simulatedOutput: `full_name                   | course\n----------------------------+-------\nGeofrey M. Bernabe          | SQL\nIrish Kate T. Mercado       | Python\nPrincess Roxanne M. Quitola | HTML`,
+        'Using the SQL structure below, choose <strong>any column(s)</strong> from <code>student_id</code>, <code>full_name</code>, <code>course</code>, <code>score</code> — or write <code>*</code> for all columns!',
+      starterCode: `-- Available columns in students: student_id, full_name, course, score
+SELECT 
+FROM students;`,
+      solutionCode: `SELECT full_name, course, score
+FROM students;`,
+      hint: 'Write SELECT * FROM students; or choose any columns like SELECT full_name, score FROM students;',
+      simulatedOutput: `full_name                   | course | score\n----------------------------+--------+------\nGeofrey M. Bernabe          | SQL    | 98`,
       validate(code) {
-        const ok = /SELECT\s+full_name\s*,\s*course\s+FROM\s+students\s*;?/i.test(code);
-        if (!ok) {
-          return { ok: false, message: 'Write: SELECT full_name, course FROM students;' };
+        const clean = stripCodeComments(code, 'sql').trim();
+        const m = /^SELECT\s+([\s\S]+?)\s+FROM\s+students\s*;?$/i.exec(clean);
+        if (!m) {
+          return { ok: false, message: 'Specify column(s) or * between SELECT and FROM students;' };
         }
-        return { ok: true, message: 'Query executed! 3 student rows returned.' };
+        const validCols = ['student_id', 'full_name', 'course', 'score'];
+        const rawSel = m[1].trim();
+        let chosenCols = [];
+        if (rawSel === '*') {
+          chosenCols = validCols;
+        } else {
+          const parts = rawSel.split(',').map((c) => c.trim().toLowerCase());
+          if (parts.some((p) => !validCols.includes(p))) {
+            return {
+              ok: false,
+              message: 'Choose * or valid columns from students: student_id, full_name, course, score.'
+            };
+          }
+          chosenCols = parts;
+        }
+        return {
+          ok: true,
+          message: `Query executed! Returned ${SAMPLE_SQL_STUDENTS.length} student rows.`,
+          output: formatSqlResultTable(chosenCols, SAMPLE_SQL_STUDENTS)
+        };
       }
     },
     {
       id: 'sql-prac-2',
       title: 'Filter Rows with WHERE',
       filename: 'query2.sql',
-      prompt: 'Filter high-scoring students using a WHERE clause.',
+      prompt: 'Filter students using a WHERE clause with any score number or condition.',
       taskDetail:
-        'Select all columns (<code>*</code>) from <code>students</code> where <code>score &gt;= 90</code>.',
-      starterCode: `-- Select all columns from students with score >= 90\n`,
-      solutionCode: `SELECT *\nFROM students\nWHERE score >= 90;`,
-      hint: 'Use SELECT * FROM students WHERE score >= 90;',
-      simulatedOutput: `student_id | full_name                   | score\n-----------+-----------------------------+------\n101        | Geofrey M. Bernabe          | 98\n102        | Irish Kate T. Mercado       | 95\n103        | Princess Roxanne M. Quitola | 93`,
+        'Enter <strong>any score number</strong> (such as <code>85</code>, <code>90</code>, or <code>50</code>) and any comparison operator (<code>&gt;=</code>, <code>&gt;</code>, <code>&lt;=</code>, <code>&lt;</code>, <code>=</code>) in the <code>WHERE</code> clause!',
+      starterCode: `-- Sample scores in students range from 78 to 98
+-- Put any number you want in the WHERE condition below!
+SELECT *
+FROM students
+WHERE score >= ;`,
+      solutionCode: `SELECT *
+FROM students
+WHERE score >= 90;`,
+      hint: 'Enter any number after WHERE score >=, for example: WHERE score >= 85; or WHERE score < 95;',
+      simulatedOutput: `student_id | full_name | course | score`,
       validate(code) {
-        const ok = /SELECT\s+\*\s+FROM\s+students\s+WHERE\s+score\s*>=\s*90\s*;?/i.test(code);
-        if (!ok) {
-          return { ok: false, message: 'Make sure your query matches: SELECT * FROM students WHERE score >= 90;' };
+        const clean = stripCodeComments(code, 'sql').trim();
+        const m = /^SELECT\s+([\s\S]+?)\s+FROM\s+students\s+WHERE\s+(student_id|full_name|course|score)\s*(>=|<=|!=|<>|=|>|<)\s*(-?\d+(?:\.\d+)?|'[^']*'|"[^"]*")\s*;?$/i.exec(clean);
+        if (!m) {
+          return {
+            ok: false,
+            message: 'Complete the WHERE condition with any number or text (e.g., WHERE score >= 85;).'
+          };
         }
-        return { ok: true, message: 'Great filtering! Only students scoring 90+ were returned.' };
+        const [, selPart, colRaw, op, valRaw] = m;
+        const validCols = ['student_id', 'full_name', 'course', 'score'];
+        const cols =
+          selPart.trim() === '*'
+            ? validCols
+            : selPart
+                .split(',')
+                .map((s) => s.trim().toLowerCase())
+                .filter((c) => validCols.includes(c));
+        if (!cols.length) {
+          return { ok: false, message: 'Select * or valid column names from students.' };
+        }
+        const col = colRaw.toLowerCase();
+        const targetVal = /^['"]/.test(valRaw) ? valRaw.slice(1, -1) : Number(valRaw);
+        const filtered = SAMPLE_SQL_STUDENTS.filter((row) => {
+          const left = typeof targetVal === 'string' ? String(row[col]).toLowerCase() : row[col];
+          const right = typeof targetVal === 'string' ? targetVal.toLowerCase() : targetVal;
+          return compareValues(left, op, right);
+        });
+        return {
+          ok: true,
+          message: `Great filtering! Matched ${filtered.length} row(s) where ${col} ${op} ${valRaw}.`,
+          output: formatSqlResultTable(cols, filtered)
+        };
       }
     },
     {
       id: 'sql-prac-3',
       title: 'Insert a New Course Row',
       filename: 'query3.sql',
-      prompt: 'Add a new record into the courses table using INSERT INTO.',
+      prompt: 'Add a new record into the courses table with any ID number and any title.',
       taskDetail:
-        'Insert into <code>courses (course_id, title)</code> the values <code>(3, \'C++ Basics\')</code>.',
-      starterCode: `-- Insert (3, 'C++ Basics') into courses (course_id, title)\n`,
-      solutionCode: `INSERT INTO courses (course_id, title)\nVALUES (3, 'C++ Basics');`,
-      hint: "Write INSERT INTO courses (course_id, title) VALUES (3, 'C++ Basics');",
-      simulatedOutput: `INSERT 0 1 — 1 row inserted into 'courses':\ncourse_id: 3 | title: 'C++ Basics'`,
+        'Inside <code>VALUES (...)</code>, enter <strong>any course_id number</strong> and <strong>any course title text</strong> inside quotes!',
+      starterCode: `-- Table: courses (course_id, title)
+-- Put any ID number and any course name inside VALUES (...)!
+INSERT INTO courses (course_id, title)
+VALUES (, '');`,
+      solutionCode: `INSERT INTO courses (course_id, title)
+VALUES (3, 'Modern C++');`,
+      hint: "Put any number and any non-empty title, e.g.: VALUES (10, 'Web Development');",
+      simulatedOutput: `INSERT 0 1 — 1 row inserted into 'courses'`,
       validate(code) {
-        const ok = /INSERT\s+INTO\s+courses\s*\(\s*course_id\s*,\s*title\s*\)\s*VALUES\s*\(\s*3\s*,\s*'C\+\+\s+Basics'\s*\)\s*;?/i.test(code);
-        if (!ok) {
+        const clean = stripCodeComments(code, 'sql').trim();
+        const m = /^INSERT\s+INTO\s+courses\s*(?:\(\s*course_id\s*,\s*title\s*\))?\s*VALUES\s*\(\s*(-?\d+)\s*,\s*(?:'([^']*)'|"([^"]*)")\s*\)\s*;?$/i.exec(clean);
+        if (!m) {
           return {
             ok: false,
-            message: "Use INSERT INTO courses (course_id, title) VALUES (3, 'C++ Basics');"
+            message: "Enter any integer ID and quoted title inside VALUES (id, 'Title');"
           };
         }
-        return { ok: true, message: 'Row inserted cleanly into courses!' };
+        const idNum = m[1];
+        const titleText = (m[2] ?? m[3] ?? '').trim();
+        if (!titleText) {
+          return { ok: false, message: "Write any non-empty course title inside the quotes (e.g., 'Game Design')." };
+        }
+        return {
+          ok: true,
+          message: `Row (course_id: ${idNum}, title: '${titleText}') inserted cleanly into courses!`,
+          output: `INSERT 0 1 — 1 row inserted into 'courses':\ncourse_id: ${idNum} | title: '${titleText}'`
+        };
       }
     },
     {
       id: 'sql-prac-4',
-      title: 'Count Students per Course',
+      title: 'Aggregate with GROUP BY',
       filename: 'query4.sql',
-      prompt: 'Aggregate records per group using COUNT(*) and GROUP BY.',
+      prompt: 'Summarize student records using an aggregate function and GROUP BY.',
       taskDetail:
-        'Select <code>course</code> and <code>COUNT(*)</code> from <code>students</code>, grouped with <code>GROUP BY course</code>.',
-      starterCode: `-- Count students in each course using GROUP BY\n`,
-      solutionCode: `SELECT course, COUNT(*)\nFROM students\nGROUP BY course;`,
-      hint: 'Write SELECT course, COUNT(*) FROM students GROUP BY course;',
+        'Complete <code>GROUP BY course;</code> (and feel free to try <code>COUNT(*)</code>, <code>AVG(score)</code>, <code>MAX(score)</code>, or <code>MIN(score)</code>!).',
+      starterCode: `-- Table: students (student_id, full_name, course, score)
+-- Complete the GROUP BY column (e.g. course) below:
+SELECT course, COUNT(*)
+FROM students
+GROUP BY ;`,
+      solutionCode: `SELECT course, COUNT(*)
+FROM students
+GROUP BY course;`,
+      hint: 'Add course after GROUP BY so it reads: GROUP BY course;',
       simulatedOutput: `course | count\n-------+------\nSQL    | 24\nPython | 31\nC++    | 18`,
       validate(code) {
-        const ok = /SELECT\s+course\s*,\s*COUNT\s*\(\s*\*\s*\).*FROM\s+students\s+GROUP\s+BY\s+course\s*;?/is.test(code);
-        if (!ok) {
-          return { ok: false, message: 'Include SELECT course, COUNT(*) FROM students GROUP BY course;' };
+        const clean = stripCodeComments(code, 'sql').trim();
+        const m = /^SELECT\s+([\s\S]+?)\s+FROM\s+students\s+GROUP\s+BY\s+(course|student_id|full_name|score)\s*;?$/i.exec(clean);
+        if (!m || !/\b(COUNT|AVG|SUM|MIN|MAX)\s*\(/i.test(m[1])) {
+          return {
+            ok: false,
+            message: 'Include an aggregate (like COUNT(*) or AVG(score)) and finish GROUP BY course;'
+          };
         }
-        return { ok: true, message: 'Aggregation complete! Grouped counts calculated.' };
+        const aggMatch = /\b(COUNT|AVG|SUM|MIN|MAX)\s*\(/i.exec(m[1]);
+        const aggFn = aggMatch[1].toUpperCase();
+        const sampleRows =
+          aggFn === 'COUNT'
+            ? [
+                { course: 'SQL', count: 24 },
+                { course: 'Python', count: 31 },
+                { course: 'HTML', count: 27 },
+                { course: 'C++', count: 18 }
+              ]
+            : [
+                { course: 'SQL', [aggFn.toLowerCase()]: 98 },
+                { course: 'Python', [aggFn.toLowerCase()]: 95 },
+                { course: 'HTML', [aggFn.toLowerCase()]: 93 },
+                { course: 'C++', [aggFn.toLowerCase()]: 86 }
+              ];
+        const metricCol = aggFn === 'COUNT' ? 'count' : aggFn.toLowerCase();
+        return {
+          ok: true,
+          message: `Aggregation (${aggFn}) with GROUP BY executed cleanly!`,
+          output: formatSqlResultTable(['course', metricCol], sampleRows)
+        };
       }
     }
   ],
@@ -1426,77 +2075,253 @@ const PRACTICE_DATA = {
       id: 'cpp-prac-1',
       title: 'Console Output with std::cout',
       filename: 'practice1.cpp',
-      prompt: 'Use the C++ output stream operator (<<) to print a message.',
+      prompt: 'Use the C++ output stream operator (<<) to print any message or number.',
       taskDetail:
-        'Inside <code>main()</code>, use <code>std::cout</code> to output <code>"Welcome to KNOX C++"</code>.',
-      starterCode: `#include <iostream>\n\nint main() {\n    // Output "Welcome to KNOX C++" using std::cout\n    \n    return 0;\n}`,
-      solutionCode: `#include <iostream>\n\nint main() {\n    std::cout << "Welcome to KNOX C++" << std::endl;\n    return 0;\n}`,
-      hint: 'Write std::cout << "Welcome to KNOX C++"; inside main().',
-      simulatedOutput: 'Welcome to KNOX C++',
+        'Inside <code>main()</code>, write <strong>any message (in quotes) or any number</strong> inside the <code>std::cout</code> statement!',
+      starterCode: `#include <iostream>
+
+int main() {
+    // Type any message in quotes or any number to print!
+    std::cout << "" << std::endl;
+    return 0;
+}`,
+      solutionCode: `#include <iostream>
+
+int main() {
+    std::cout << "Welcome to C++!" << std::endl;
+    return 0;
+}`,
+      hint: 'Type any text inside the quotes like std::cout << "Hello C++!" << std::endl; or print any number!',
+      simulatedOutput: 'Welcome to C++!',
       validate(code) {
-        const ok = /(std::)?cout\s*<<\s*"Welcome to KNOX C\+\+"[\s\S]*?;/.test(code);
-        if (!ok) {
-          return { ok: false, message: 'Use std::cout << "Welcome to KNOX C++"; (don\'t forget the semicolon!).' };
+        const clean = stripCodeComments(code, 'c');
+        if (!/\bint\s+main\s*\(/.test(clean)) {
+          return { ok: false, message: 'Keep the int main() { ... } function structure.' };
         }
-        return { ok: true, message: 'Compiled with g++! Output: Welcome to KNOX C++.' };
+        const coutRegex = /(?:std::)?cout\s*<<([\s\S]*?);/g;
+        const pieces = [];
+        let m;
+        while ((m = coutRegex.exec(clean)) !== null) {
+          const parts = m[1].split('<<').map((p) => p.trim());
+          for (const part of parts) {
+            if (!part) continue;
+            if (/^(?:std::)?endl$/.test(part) || part === '"\\n"' || part === "'\\n'") {
+              pieces.push('\n');
+            } else {
+              const strM = /^"(.*)"$/s.exec(part);
+              if (strM) {
+                if (strM[1].trim() !== '') pieces.push(strM[1].replace(/\\n/g, '\n'));
+              } else {
+                pieces.push(part);
+              }
+            }
+          }
+        }
+        const out = pieces.join('').replace(/\n+$/, '').trim();
+        if (!out) {
+          return { ok: false, message: 'Write any non-empty text or number in std::cout << "..." << std::endl;' };
+        }
+        return { ok: true, message: `Compiled with g++! Output: ${out}`, output: out };
       }
     },
     {
       id: 'cpp-prac-2',
-      title: 'Calculate Rectangle Area',
+      title: 'Multiply Any Two Numbers',
       filename: 'practice2.cpp',
-      prompt: 'Declare C++ integer variables and output their product.',
+      prompt: 'Assign any two numbers in C++ and output their calculated product.',
       taskDetail:
-        'Declare <code>int width = 8;</code> and <code>int height = 5;</code>, then output <code>width * height</code> with <code>std::cout</code>.',
-      starterCode: `#include <iostream>\n\nint main() {\n    // Declare width = 8, height = 5 and print width * height\n    \n    return 0;\n}`,
-      solutionCode: `#include <iostream>\n\nint main() {\n    int width = 8;\n    int height = 5;\n    std::cout << width * height << std::endl;\n    return 0;\n}`,
-      hint: 'Write int width = 8; int height = 5; std::cout << width * height;',
+        'Enter <strong>any numbers you want</strong> for <code>width</code> and <code>height</code> (integers or decimals) to calculate and display <code>width * height</code>.',
+      starterCode: `#include <iostream>
+
+int main() {
+    // Put any two numbers you want for width and height!
+    int width = ;
+    int height = ;
+    int area = width * height;
+
+    std::cout << area << std::endl;
+    return 0;
+}`,
+      solutionCode: `#include <iostream>
+
+int main() {
+    int width = 8;
+    int height = 5;
+    int area = width * height;
+
+    std::cout << area << std::endl;
+    return 0;
+}`,
+      hint: 'Enter any numbers, such as int width = 12; and int height = 10; (or double for decimals!).',
       simulatedOutput: '40',
       validate(code) {
-        const hasW = /int\s+width\s*=\s*8\s*;/.test(code);
-        const hasH = /int\s+height\s*=\s*5\s*;/.test(code);
-        const hasOut = /(std::)?cout\s*<<\s*(width\s*\*\s*height|area)/.test(code);
-        if (!hasW || !hasH) return { ok: false, message: 'Declare both int width = 8; and int height = 5;' };
-        if (!hasOut) return { ok: false, message: 'Print the area using std::cout << width * height;' };
-        return { ok: true, message: 'Nice work! Rectangle area 40 printed.' };
+        const clean = stripCodeComments(code, 'c');
+        const varRegex = /\b(?:int|double|float|long)\s+(\w+)\s*=\s*(-?\d+(?:\.\d+)?)\s*;/g;
+        const vars = [];
+        let m;
+        while ((m = varRegex.exec(clean)) !== null) {
+          vars.push({ name: m[1], val: Number(m[2]) });
+        }
+        if (vars.length < 2) {
+          return { ok: false, message: 'Enter any number for both width and height (e.g., int width = 8; int height = 5;).' };
+        }
+        const [v1, v2] = vars;
+        const hasMult = new RegExp(`\\b${v1.name}\\s*\\*\\s*${v2.name}\\b|\\b${v2.name}\\s*\\*\\s*${v1.name}\\b`).test(clean);
+        if (!hasMult) {
+          return { ok: false, message: `Multiply your two variables using ${v1.name} * ${v2.name}.` };
+        }
+        if (!/(?:std::)?cout\s*<</.test(clean)) {
+          return { ok: false, message: 'Use std::cout << to display the calculated product.' };
+        }
+        const prod = Number((v1.val * v2.val).toFixed(6));
+        return { ok: true, message: `Nice work! ${v1.val} * ${v2.val} = ${prod}.`, output: String(prod) };
       }
     },
     {
       id: 'cpp-prac-3',
       title: 'Push Element to std::vector',
       filename: 'practice3.cpp',
-      prompt: 'Use STL std::vector::push_back() to append a new score and display the vector size.',
+      prompt: 'Use std::vector::push_back() with any numbers you want and print the vector size.',
       taskDetail:
-        'Call <code>scores.push_back(100);</code> and output <code>scores.size()</code> using <code>std::cout</code>.',
-      starterCode: `#include <iostream>\n#include <vector>\n\nint main() {\n    std::vector<int> scores = {85, 90, 95};\n    // Push 100 into scores and output scores.size()\n    \n    return 0;\n}`,
-      solutionCode: `#include <iostream>\n#include <vector>\n\nint main() {\n    std::vector<int> scores = {85, 90, 95};\n    scores.push_back(100);\n    std::cout << scores.size() << std::endl;\n    return 0;\n}`,
-      hint: 'Call scores.push_back(100); then std::cout << scores.size();',
+        'Customize the numbers inside <code>scores</code> if you like, pass <strong>any number</strong> into <code>scores.push_back(...)</code>, and output <code>scores.size()</code>.',
+      starterCode: `#include <iostream>
+#include <vector>
+
+int main() {
+    // Customize the initial numbers and push_back any number you want!
+    std::vector<int> scores = {85, 90, 95};
+
+    scores.push_back();
+
+    std::cout << scores.size() << std::endl;
+    return 0;
+}`,
+      solutionCode: `#include <iostream>
+#include <vector>
+
+int main() {
+    std::vector<int> scores = {85, 90, 95};
+
+    scores.push_back(100);
+
+    std::cout << scores.size() << std::endl;
+    return 0;
+}`,
+      hint: 'Put any number inside scores.push_back(...), for example: scores.push_back(100); or scores.push_back(42);',
       simulatedOutput: '4',
       validate(code) {
-        const hasPush = /scores\.push_back\s*\(\s*100\s*\)\s*;/.test(code);
-        const hasSize = /(std::)?cout\s*<<\s*scores\.size\s*\(\s*\)/.test(code);
-        if (!hasPush) return { ok: false, message: 'Add 100 using scores.push_back(100);' };
-        if (!hasSize) return { ok: false, message: 'Output the vector length using std::cout << scores.size();' };
-        return { ok: true, message: 'Awesome! Vector now holds 4 elements.' };
+        const clean = stripCodeComments(code, 'c');
+        const vecMatch = /vector\s*<\s*(?:int|double|float|long)\s*>\s+(\w+)\s*(?:=\s*\{([^}]*)\})?/.exec(clean);
+        if (!vecMatch) {
+          return { ok: false, message: 'Keep your std::vector<int> declaration in main().' };
+        }
+        const vecName = vecMatch[1];
+        const initItems = (vecMatch[2] || '')
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean);
+        const pushRegex = new RegExp(`\\b${vecName}\\.push_back\\s*\\(\\s*(-?\\d+(?:\\.\\d+)?)\\s*\\)\\s*;`, 'g');
+        const pushed = [];
+        let m;
+        while ((m = pushRegex.exec(clean)) !== null) {
+          pushed.push(m[1]);
+        }
+        if (pushed.length === 0) {
+          return { ok: false, message: `Pass any number into ${vecName}.push_back(...); (e.g., ${vecName}.push_back(100);).` };
+        }
+        if (!new RegExp(`(?:std::)?cout[\\s\\S]*?\\b${vecName}\\.size\\s*\\(\\s*\\)`).test(clean)) {
+          return { ok: false, message: `Output the vector size using std::cout << ${vecName}.size();` };
+        }
+        const totalSize = initItems.length + pushed.length;
+        return {
+          ok: true,
+          message: `Awesome! Pushed ${pushed.join(', ')} — ${vecName}.size() is now ${totalSize}.`,
+          output: String(totalSize)
+        };
       }
     },
     {
       id: 'cpp-prac-4',
-      title: 'Pass-by-Reference Doubler',
+      title: 'Pass-by-Reference Modifier',
       filename: 'practice4.cpp',
-      prompt: 'Modify an integer in-place using a C++ reference parameter (int&).',
+      prompt: 'Modify a number in-place using a C++ reference parameter (int&) with any values.',
       taskDetail:
-        'Inside <code>void doubleValue(int&amp; n)</code>, multiply <code>n</code> by 2 (<code>n = n * 2;</code> or <code>n *= 2;</code>).',
-      starterCode: `#include <iostream>\n\nvoid doubleValue(int& n) {\n    // Multiply n by 2 in-place\n    \n}\n\nint main() {\n    int val = 21;\n    doubleValue(val);\n    std::cout << val << std::endl;\n    return 0;\n}`,
-      solutionCode: `#include <iostream>\n\nvoid doubleValue(int& n) {\n    n *= 2;\n}\n\nint main() {\n    int val = 21;\n    doubleValue(val);\n    std::cout << val << std::endl;\n    return 0;\n}`,
-      hint: 'Inside doubleValue(int& n), write n *= 2; or n = n * 2;',
+        'Put <strong>any multiplier/offset number</strong> inside <code>updateValue(int&amp; n)</code> and <strong>any starting number</strong> for <code>val</code> in <code>main()</code>!',
+      starterCode: `#include <iostream>
+
+void updateValue(int& n) {
+    // Multiply, add, or subtract any number in-place (e.g., n = n * 2; or n += 10;)
+    n = n * ;
+}
+
+int main() {
+    // Put any starting number you want for val!
+    int val = 21;
+    updateValue(val);
+    std::cout << val << std::endl;
+    return 0;
+}`,
+      solutionCode: `#include <iostream>
+
+void updateValue(int& n) {
+    n = n * 2;
+}
+
+int main() {
+    int val = 21;
+    updateValue(val);
+    std::cout << val << std::endl;
+    return 0;
+}`,
+      hint: 'Put any number after *, such as n = n * 3; (or n *= 5; or n += 10;), and try any number for val!',
       simulatedOutput: '42',
       validate(code) {
-        const hasRef = /void\s+doubleValue\s*\(\s*int\s*&\s*n\s*\)/.test(code);
-        const hasMult = /(n\s*\*=\s*2|n\s*=\s*(n\s*\*\s*2|2\s*\*\s*n))\s*;/.test(code);
-        if (!hasRef) return { ok: false, message: 'Keep the reference signature: void doubleValue(int& n).' };
-        if (!hasMult) return { ok: false, message: 'Multiply n by 2 using n *= 2; or n = n * 2;' };
-        return { ok: true, message: 'Reference mastered! val was doubled in-place to 42.' };
+        const clean = stripCodeComments(code, 'c');
+        const fnMatch = /void\s+(\w+)\s*\(\s*(?:int|double|float)\s*&\s*(\w+)\s*\)\s*\{([\s\S]*?)\}/.exec(clean);
+        if (!fnMatch) {
+          return { ok: false, message: 'Keep the pass-by-reference function signature: void updateValue(int& n) { ... }' };
+        }
+        const [, fnName, param, fnBody] = fnMatch;
+        const compound = new RegExp(`\\b${param}\\s*(\\*=|\\+=|-=|\\/=)\\s*(-?\\d+(?:\\.\\d+)?)\\s*;`).exec(fnBody);
+        const binaryRight = new RegExp(`\\b${param}\\s*=\\s*${param}\\s*([*+\\-/])\\s*(-?\\d+(?:\\.\\d+)?)\\s*;`).exec(fnBody);
+        const binaryLeft = new RegExp(`\\b${param}\\s*=\\s*(-?\\d+(?:\\.\\d+)?)\\s*([*+])\\s*${param}\\s*;`).exec(fnBody);
+
+        let op = null;
+        let num = null;
+        if (compound) {
+          op = compound[1][0];
+          num = Number(compound[2]);
+        } else if (binaryRight) {
+          op = binaryRight[1];
+          num = Number(binaryRight[2]);
+        } else if (binaryLeft) {
+          op = binaryLeft[2];
+          num = Number(binaryLeft[1]);
+        }
+        if (!op || num === null) {
+          return { ok: false, message: `Enter any number to modify ${param} inside ${fnName} (e.g., ${param} = ${param} * 2; or ${param} += 10;).` };
+        }
+
+        const valMatch = /\b(?:int|double|float)\s+(\w+)\s*=\s*(-?\d+(?:\.\d+)?)\s*;/.exec(clean);
+        if (!valMatch) {
+          return { ok: false, message: 'Assign any starting number to val inside main() (e.g., int val = 21;).' };
+        }
+        const valVar = valMatch[1];
+        let val = Number(valMatch[2]);
+        if (!new RegExp(`\\b${fnName}\\s*\\(\\s*${valVar}\\s*\\)\\s*;`).test(clean)) {
+          return { ok: false, message: `Call ${fnName}(${valVar}); inside main().` };
+        }
+        if (op === '*') val *= num;
+        else if (op === '+') val += num;
+        else if (op === '-') val -= num;
+        else if (op === '/' && num !== 0) val = Math.trunc(val / num);
+        val = Number(val.toFixed(6));
+
+        return {
+          ok: true,
+          message: `Reference mastered! ${valVar} was updated in-place to ${val}.`,
+          output: String(val)
+        };
       }
     }
   ]
@@ -2079,7 +2904,14 @@ function handleRunAndCheck() {
     const frame = document.createElement('iframe');
     frame.className = 'live-preview-frame';
     frame.setAttribute('sandbox', '');
-    frame.srcdoc = `<!DOCTYPE html><html><body style="font-family:sans-serif;color:#0f172a;padding:12px;margin:0;">${userCode}</body></html>`;
+    const baseStyle = `<style>body{font-family:sans-serif;color:#0f172a;padding:12px;margin:0;}</style>`;
+    if (/<html[\s>]/i.test(userCode)) {
+      frame.srcdoc = /<\/head>/i.test(userCode)
+        ? userCode.replace(/<\/head>/i, `${baseStyle}</head>`)
+        : `${baseStyle}${userCode}`;
+    } else {
+      frame.srcdoc = `<!DOCTYPE html><html><head>${baseStyle}</head><body>${userCode}</body></html>`;
+    }
     practiceOutputBody.appendChild(frame);
   } else if (ch.previewMode === 'css') {
     practiceOutputBadge.textContent = 'Live Styled Render';
@@ -2094,7 +2926,7 @@ function handleRunAndCheck() {
     practiceOutputBody.innerHTML = `<div class="output-terminal"></div>`;
     const term = practiceOutputBody.querySelector('.output-terminal');
     term.textContent = result.ok
-      ? ch.simulatedOutput
+      ? (result.output ?? ch.simulatedOutput)
       : `Fix the issue above and run again to see your program's output.`;
   }
 }
